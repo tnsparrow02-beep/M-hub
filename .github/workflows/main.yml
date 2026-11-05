@@ -1,0 +1,36 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Create Android project
+        run: flutter create --platforms=android --project-name mon_hub app
+      - name: Copy my files
+        run: |
+          cp main.dart app/lib/main.dart
+          cp pubspec.yaml app/pubspec.yaml
+          M=app/android/app/src/main/AndroidManifest.xml
+          sed -i 's|<manifest xmlns:android="http://schemas.android.com/apk/res/android">|&<uses-permission android:name="android.permission.INTERNET"/><uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/><uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"/><uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>|' $M
+          sed -i 's|<queries>|<queries><intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https"/></intent>|' $M
+          sed -i 's|android:label="mon_hub"|android:label="Mon Hub"|' $M
+      - name: Build
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mon-hub-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
